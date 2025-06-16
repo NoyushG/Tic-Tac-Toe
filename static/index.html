@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>איקס עיגול 🎀</title>
+  <style>
+    body {
+      font-family: 'Varela Round', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(to right, #ffe0f0, #fff0f5);
+      direction: rtl;
+      padding-top: 40px;
+    }
+    h2 {
+      color: #d63384;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 1px 1px 3px #ffb6c1;
+    }
+    #symbol, #scores, #info {
+      font-size: 1.2rem;
+      margin-bottom: 5px;
+    }
+    #symbol { color: #e91e63; }
+    #scores { color: #c2185b; }
+    #info { color: #ad1457; margin-bottom: 10px; }
+
+    #game {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      background: #ffe4ec;
+      border: 2px solid #ff69b4;
+      border-radius: 15px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      user-select: none;
+    }
+    .cell:hover {
+      background-color: #ffd6e8;
+      transform: scale(1.05);
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 25px;
+      font-size: 1rem;
+      background-color: #ff69b4;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.3s, transform 0.2s;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+    button:hover {
+      background-color: #ff85c1;
+      transform: scale(1.05);
+    }
+
+    #form-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    input[type="text"] {
+      padding: 10px;
+      border: 2px solid #ff69b4;
+      border-radius: 15px;
+      margin: 5px;
+      width: 200px;
+      font-size: 1rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h2>איקס עיגול</h2>
+
+  <div id="form-container">
+    <input id="roomInput" type="text" placeholder="הכנס מזהה חדר (למשל room1)">
+    <input id="nameInput" type="text" placeholder="הכנס שם שחקן">
+    <button onclick="startGame()">התחבר</button>
+  </div>
+
+  <div id="symbol"></div>
+  <div id="scores"></div>
+  <div id="info"></div>
+  <div id="game"></div>
+  <button onclick="resetGame()">איפוס</button>
+
+  <script>
+    const info = document.getElementById("info");
+    const scores = document.getElementById("scores");
+    const symbolDiv = document.getElementById("symbol");
+    const gameDiv = document.getElementById("game");
+
+    const playerId = crypto.randomUUID();
+    let socket = null;
+    let mySymbol = null;
+    let gameActive = false;
+
+    function startGame() {
+      const roomId = document.getElementById("roomInput").value.trim() || 'room1';
+      const playerName = document.getElementById("nameInput").value.trim() || 'שחקן אלמוני';
+      const url = `ws://${location.host}/ws/${roomId}/${playerId}`;
+
+      socket = new WebSocket(url);
+
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ type: "join", name: playerName }));
+        document.getElementById("form-container").style.display = "none";
+      };
+
+      socket.onmessage = ({ data }) => {
+        let msg;
+        try {
+          msg = JSON.parse(data);
+        } catch {
+          info.textContent = data;
+          return;
+        }
+
+        if (msg.symbol) {
+          mySymbol = msg.symbol;
+          symbolDiv.textContent = `הסמל שלך: ${mySymbol}`;
+          return;
+        }
+        if (msg.message) {
+          alert(msg.message);
+          return;
+        }
+        if (msg.board) {
+          renderBoard(msg);
+        }
+      };
+
+      socket.onclose = () => {
+        info.textContent = "החיבור לשרת נסגר.";
+      };
+    }
+
+    function renderBoard(game) {
+      gameDiv.innerHTML = "";
+      game.board.forEach((row, r) => {
+        row.forEach((cell, c) => {
+          const div = document.createElement("div");
+          div.className = "cell";
+          div.textContent = cell;
+          div.onclick = () => handleMove(r, c);
+          gameDiv.appendChild(div);
+        });
+      });
+
+      gameActive = game.game_active;
+      const scoresText = Object.entries(game.name_score || {}).map(([name, score]) => `${name}: ${score}`).join(" | ");
+      scores.textContent = `תוצאה: ${scoresText}`;
+
+      if (game.winner === null) {
+        info.textContent = `תור: ${game.turn_name || game.turn}`;
+      } else if (game.winner === "Draw") {
+        info.textContent = "תיקו!";
+      } else {
+        info.textContent = `המנצח הוא: ${game.winner}`;
+      }
+    }
+
+    function handleMove(row, col) {
+      if (!gameActive) return;
+      socket.send(JSON.stringify({ row, col }));
+    }
+
+    function resetGame() {
+      if (socket) socket.send(JSON.stringify({ action: "reset" }));
+    }
+  </script>
+</body>
+</html>
