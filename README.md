@@ -17,3 +17,8 @@ project/
 ├── static/
 │   ├── index.html               # Main frontend HTML
 
+Design Highlights:
+- Each player is tracked by a unique player_id in a room_id.
+- The backend holds the game state in memory (GameRoom objects).
+- Client moves are sent via WebSocket messages and broadcasted to other players in the same room.
+- The UI supports real-time updates, and keyboard input.
