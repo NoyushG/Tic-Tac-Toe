@@ -29,15 +29,15 @@ project/
    git clone Tic-Tac-Toe
    cd project
 
-2. Install dependencies:
+3. Install dependencies:
    "uvicorn[standard]", fastapi uvicorn
 
-3. Run the development server:
+4. Run the development server:
    uvicorn main:app --reload
 
-4. Open your browser and visit:
+5. Open your browser and visit:
    http://127.0.0.1:8000
 
-5. Play the Game:
+6. Play the Game:
    - Enter a nickname and room ID.
    - Open multiple tabs or devices to simulate multiple players in the same room.
